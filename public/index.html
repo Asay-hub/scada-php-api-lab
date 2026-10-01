@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA Дашборд - Диспетчеризація</title>
+    <style>
+        :root {
+            --bg-color: #e9ecef;
+            --panel-bg: #ffffff;
+            --text-color: #343a40;
+            --header-bg: #343a40;
+            --card-bg: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --header-bg: #1f1f1f;
+            --card-bg: #2a2a2a;
+            --border-color: #444444;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; transition: background 0.3s, color 0.3s; }
+        .header { background: var(--header-bg); color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header h2 { margin: 0; }
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .status-badge { background: #28a745; padding: 5px 10px; border-radius: 20px; font-size: 0.9em; font-weight: bold; animation: pulse 2s infinite; }
+        .theme-btn { background: none; border: 1px solid white; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        /* Панель аварій */
+        #alarmBanner { background: #dc3545; color: white; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; display: none; animation: blinkAlarm 1s infinite; }
+        @keyframes blinkAlarm { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        .dashboard { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .panel { background: var(--panel-bg); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+        
+        input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        button { width: 100%; padding: 10px; background-color: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
+        button:hover { background-color: #0b5ed7; }
+        
+        .controls-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        
+        .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 15px; }
+        .device-card { background: var(--card-bg); border: 1px solid var(--border-color); border-left: 5px solid #0dcaf0; border-radius: 6px; padding: 15px; position: relative; display: flex; flex-direction: column; justify-content: space-between; transition: border-color 0.3s; }
+        .device-card.alarm { border-left-color: #dc3545; background: rgba(220, 53, 69, 0.05); }
+        .d-name { font-weight: bold; font-size: 1.1em; }
+        .d-proto { font-size: 0.85em; opacity: 0.7; margin: 4px 0; }
+        .live-value { font-size: 1.2em; font-weight: bold; color: #198754; background: rgba(25, 135, 84, 0.1); padding: 5px; border-radius: 4px; text-align: center; margin: 10px 0; }
+        .device-card.alarm .live-value { color: #dc3545; background: rgba(220, 53, 69, 0.1); }
+        
+        .card-actions { display: flex; gap: 5px; margin-top: 10px; }
+        .btn-config { flex: 1; background: #0d6efd; color: white; border: none; padding: 6px; border-radius: 4px; text-decoration: none; text-align: center; font-size: 0.85em; font-weight: bold; }
+        .btn-delete { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div class="header">
+        <h2>🎛️ SCADA-система диспетчеризації</h2>
+        <div class="header-controls">
+            <button class="theme-btn" onclick="toggleTheme()"><span id="themeIcon">☀️</span> Тема</button>
+            <div class="status-badge">Live System Active</div>
+        </div>
+    </div>
+
+    <div id="alarmBanner">⚠️ УВАГА! Зафіксовано аварійні відхилення параметрів на контрольних пристроях!</div>
+
+    <div class="dashboard">
+        <div class="panel">
+            <h3>➕ Додати пристрій</h3>
+            <input type="text" id="newName" placeholder="Назва (напр. PT-101)">
+            <input type="text" id="newProtocol" placeholder="Інтерфейс (напр. RS-485)">
+            <select id="newCategory">
+                <option value="1">Temperature (Температура)</option>
+                <option value="2">Pressure (Тиск)</option>
+                <option value="3">Flow (Витрата)</option>
+            </select>
+            <button onclick="addDevice()">Зберегти в базу</button>
+
+            <hr style="border-color: var(--border-color); margin: 25px 0;">
+            <h3>💾 Архівація та Звіти</h3>
+            <button onclick="exportToCSV()" style="background-color: #198754; margin-bottom: 10px;">Експортувати архів у CSV</button>
+            
+            <a href="export_pdf.php" target="_blank" style="text-decoration: none;">
+                <button style="background-color: #dc3545;">📄 Скачати офіційний PDF-звіт</button>
+            </a>
+        </div>
+
+        <div class="panel">
+            <h3>📋 Моніторинг пристроїв у мережі</h3>
+            
+            <div class="controls-row">
+                <select id="categorySelect" style="margin-bottom:0;">
+                    <option value="Temperature">Temperature (Температура)</option>
+                    <option value="Pressure">Pressure (Тиск)</option>
+                    <option value="Flow">Flow (Витрата)</option>
+                </select>
+                <button onclick="fetchDevices()" style="width: auto;">Оновити</button>
+            </div>
+
+            <input type="text" id="searchInput" placeholder="🔍 Швидкий пошук за назвою або протоколом..." oninput="filterDevices()" style="margin-top: 15px;">
+            
+            <div id="results" class="device-grid">
+                <p style="color: gray; grid-column: 1 / -1;">Оберіть категорію для перегляду телеметрії.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let liveInterval = null;
+        let currentDevicesData = [];
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            if (body.dataset.theme === 'light') {
+                body.dataset.theme = 'dark';
+                themeIcon.textContent = '🌙'; 
+            } else {
+                body.dataset.theme = 'light';
+                themeIcon.textContent = '☀️'; 
+            }
+        }
+
+        async function fetchDevices() {
+            const category = document.getElementById('categorySelect').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<p>З'єднання з шиною даних...</p>`;
+
+            if (liveInterval) clearInterval(liveInterval);
+
+            try {
+                const response = await fetch(`api.php?category=${category}`);
+                const data = await response.json();
+
+                if (response.status === 404) {
+                    resultsDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                    currentDevicesData = [];
+                    return;
+                }
+
+                currentDevicesData = data.devices;
+                renderDevices(currentDevicesData, data.category);
+
+                liveInterval = setInterval(() => updateLiveValues(data.category), 1500);
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Помилка зв'язку з архівом.</p>`;
+            }
+        }
+
+        function renderDevices(devices, categoryName) {
+            const resultsDiv = document.getElementById('results');
+            if (devices.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: gray; grid-column: 1 / -1;">Пристроїв не знайдено.</p>';
+                return;
+            }
+
+            let html = '';
+            devices.forEach(device => {
+                const configUrl = `device.html?id=${device.id}&name=${encodeURIComponent(device.name)}&protocol=${encodeURIComponent(device.protocol)}&cat=${encodeURIComponent(categoryName)}`;
+                
+                html += `
+                    <div class="device-card" id="dev-${device.id}" data-name="${device.name.toLowerCase()}" data-proto="${device.protocol.toLowerCase()}">
+                        <div>
+                            <div class="d-name">⚙️ ${device.name}</div>
+                            <div class="d-proto">Інтерфейс: ${device.protocol}</div>
+                            <div class="live-value" id="val-${device.id}">Опитування...</div>
+                        </div>
+                        <div class="card-actions">
+                            <a href="${configUrl}" class="btn-config">Конфіг</a>
+                            <button class="btn-delete" onclick="deleteDevice(${device.id})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            resultsDiv.innerHTML = html;
+        }
+
+        function filterDevices() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.device-card');
+            
+            cards.forEach(card => {
+                const name = card.dataset.name;
+                const proto = card.dataset.proto;
+                if (name.includes(query) || proto.includes(query)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function updateLiveValues(category) {
+            let hasAlarm = false;
+
+            currentDevicesData.forEach(device => {
+                const valBox = document.getElementById(`val-${device.id}`);
+                const card = document.getElementById(`dev-${device.id}`);
+                if (!valBox || !card) return;
+
+                let val = 0;
+                let unit = '';
+                let isAlarmState = false;
+
+                if (category === 'Temperature') {
+                    val = (20 + Math.random() * 5).toFixed(1); 
+                    unit = '°C';
+                    if (val > 23.8) isAlarmState = true; 
+                } else if (category === 'Pressure') {
+                    val = (1.1 + Math.random() * 0.4).toFixed(2); 
+                    unit = 'МПа';
+                    if (val < 1.20) isAlarmState = true; 
+                } else {
+                    val = (40 + Math.random() * 15).toFixed(0);
+                    unit = 'м³/год';
+                    if (val > 52) isAlarmState = true;
+                }
+
+                valBox.textContent = `📊 ${val} ${unit}`;
+
+                if (isAlarmState) {
+                    card.classList.add('alarm');
+                    hasAlarm = true;
+                } else {
+                    card.classList.remove('alarm');
+                }
+            });
+
+            const banner = document.getElementById('alarmBanner');
+            banner.style.display = hasAlarm ? 'block' : 'none';
+        }
+
+        async function addDevice() {
+            const name = document.getElementById('newName').value;
+            const protocol = document.getElementById('newProtocol').value;
+            const category_id = document.getElementById('newCategory').value;
+
+            if (!name || !protocol) {
+                alert("Заповніть усі поля форми.");
+                return;
+            }
+
+            const response = await fetch('api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, protocol, category_id })
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('newName').value = '';
+                document.getElementById('newProtocol').value = '';
+                document.getElementById('newCategory').selectedIndex = category_id - 1;
+                fetchDevices();
+            } else {
+                alert("Помилка: " + result.error);
+            }
+        }
+
+        async function deleteDevice(id) {
+            if (!confirm("Ви дійсно хочете видалити цей пристрій із системи?")) return;
+
+            const response = await fetch(`api.php?id=${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (result.success) {
+                fetchDevices();
+            } else {
+                alert("Не вдалося видалити пристрій.");
+            }
+        }
+
+        function exportToCSV() {
+            if (currentDevicesData.length === 0) {
+                alert("Немає даних для експорту!");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,ID,Device Name,Protocol\n";
+            currentDevicesData.forEach(d => {
+                csvContent += `${d.id},"${d.name}","${d.protocol}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "scada_devices_archive.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
