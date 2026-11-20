@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Категорія {{ category.code }} — SCADA{% endblock %}
+
+{% block body %}
+<div class="panel">
+    <p><a href="{{ path('site_index') }}">⬅ Повернутися до дашборду</a></p>
+    <h2>Категорія: {{ category.code }} ({{ category.title }})</h2>
+
+    <div class="grid">
+        {% for device in devices %}
+            <div class="card">
+                <div style="font-weight:bold; font-size:1.1em;">⚙️ {{ device.name }}</div>
+                <p>Інтерфейс: <strong>{{ device.protocol }}</strong></p>
+                <a class="btn" href="{{ path('site_device', {id: device.id}) }}">Відкрити пристрій</a>
+            </div>
+        {% else %}
+            <p>У цій категорії ще немає пристроїв.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

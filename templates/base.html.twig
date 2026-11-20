@@ -1,24 +1,47 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SCADA Реєстр обладнання{% endblock %}</title>
+    <style>
+        :root { --bg: #e9ecef; --panel: #ffffff; --text: #212529; --header: #2c3e50; --card: #f8f9fa; --border: #dee2e6; }
+        [data-theme="dark"] { --bg: #121212; --panel: #1e1e1e; --text: #e0e0e0; --header: #181818; --card: #2a2a2a; --border: #444; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1050px; margin: 0 auto; }
+        .header { background: var(--header); color: #fff; padding: 15px 22px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header a { color: #fff; text-decoration: none; margin-left: 14px; font-weight: 600; }
+        .panel { background: var(--panel); padding: 22px; border-radius: 8px; box-shadow: 0 3px 8px rgba(0,0,0,.06); margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-left: 5px solid #0d6efd; border-radius: 6px; padding: 15px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: rgba(13,110,253,.15); color: #0d6efd; font-size: .85em; font-weight: 600; }
+        .btn { display: inline-block; padding: 8px 14px; background: #0d6efd; color: #fff; border: none; border-radius: 5px; text-decoration: none; cursor: pointer; font-weight: 600; }
+        input, select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); color: var(--text); }
+        .filter-form { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body data-theme="light">
+<div class="container">
+    <div class="header">
+        <div><strong>🎛️ SCADA-система диспетчеризації</strong></div>
+        <div>
+            <a href="{{ path('site_index') }}">Дашборд</a>
+            <a href="{{ path('api_categories') }}">JSON API</a>
+            <a href="{{ path('site_export_pdf') }}">PDF-звіт</a>
+            <a href="/admin">Адмінка</a>
+            <button type="button" class="btn" style="margin-left:12px;background:#495057" onclick="toggleTheme()" id="themeBtn">☀️ Тема</button>
+        </div>
+    </div>
 
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-
-        {% set frankenphp_hot_reload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphp_hot_reload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphp_hot_reload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
-    </head>
-    <body>
-        {% block body %}{% endblock %}
-    </body>
+    {% block body %}{% endblock %}
+</div>
+<script>
+    function toggleTheme() {
+        const dark = document.body.dataset.theme === 'dark';
+        document.body.dataset.theme = dark ? 'light' : 'dark';
+        document.getElementById('themeBtn').textContent = dark ? '☀️ Тема' : '🌙 Тема';
+    }
+</script>
+</body>
 </html>

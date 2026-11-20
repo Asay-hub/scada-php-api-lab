@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ device.name }} — Моніторинг{% endblock %}
+
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="panel">
+    <p>
+        <a href="{{ path('site_index') }}">⬅ Дашборд</a> |
+        <a href="{{ path('site_category', {code: device.category.code}) }}">Категорія {{ device.category.code }}</a>
+    </p>
+    <h2>⚙️ {{ device.name }}</h2>
+    <p>
+        <strong>Категорія:</strong> {{ device.category.code }} ({{ device.category.title }})<br>
+        <strong>Інтерфейс шини:</strong> {{ device.protocol }}<br>
+        <strong>Одиниці вимірювання:</strong> {{ device.unit ?? '—' }}
+    </p>
+
+    <h3>📈 Тренд вимірювань (імітація телеметрії)</h3>
+    <canvas id="trendChart" height="90"></canvas>
+</div>
+
+<script>
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const unit = {{ (device.unit ?? '')|json_encode|raw }};
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['10с', '8с', '6с', '4с', '2с', 'Зараз'],
+            datasets: [{
+                label: 'Значення сигналу ' + (unit ? `(${unit})` : ''),
+                data: [21.0, 21.3, 21.1, 21.5, 21.8, 22.0],
+                borderColor: '#0d6efd',
+                tension: 0.3
+            }]
+        }
+    });
+
+    setInterval(() => {
+        const val = (20 + Math.random() * 3).toFixed(2);
+        chart.data.labels.shift();
+        chart.data.labels.push(new Date().toLocaleTimeString());
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[0].data.push(val);
+        chart.update();
+    }, 2000);
+</script>
+{% endblock %}

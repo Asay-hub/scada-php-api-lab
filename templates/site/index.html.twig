@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}SCADA Дашборд — Реєстр пристроїв{% endblock %}
+
+{% block body %}
+<div class="panel">
+    <h2>Категорії обладнання</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        {% for cat in categories %}
+            <a class="btn" href="{{ path('site_category', {code: cat.code}) }}">
+                {{ cat.code }} — {{ cat.title }} ({{ cat.devices|length }})
+            </a>
+        {% else %}
+            <p>Категорій поки немає. Додайте їх через <a href="/admin">адмін-панель</a>.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="panel">
+    <h2>Реєстр пристроїв у мережі</h2>
+    <form method="get" action="{{ path('site_index') }}" class="filter-form">
+        <select name="category">
+            <option value="">Усі категорії</option>
+            {% for cat in categories %}
+                <option value="{{ cat.code }}" {{ selectedCategory == cat.code ? 'selected' : '' }}>
+                    {{ cat.code }} ({{ cat.title }})
+                </option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" value="{{ search }}" placeholder="Пошук за назвою або протоколом...">
+        <button type="submit" class="btn">Фільтрувати</button>
+        {% if selectedCategory or search %}
+            <a href="{{ path('site_index') }}" class="btn" style="background:#6c757d;">Скинути</a>
+        {% endif %}
+    </form>
+
+    <div class="grid">
+        {% for device in devices %}
+            <div class="card">
+                <div style="font-weight:bold; font-size:1.1em; margin-bottom:6px;">⚙️ {{ device.name }}</div>
+                <div style="margin-bottom:6px;"><span class="badge">{{ device.category.code }}</span></div>
+                <div style="font-size:.9em; opacity:.8; margin-bottom:12px;">
+                    Інтерфейс: {{ device.protocol }}
+                    {% if device.unit %} | Од.: {{ device.unit }}{% endif %}
+                </div>
+                <a class="btn" href="{{ path('site_device', {id: device.id}) }}">Моніторинг та параметри →</a>
+            </div>
+        {% else %}
+            <p>Пристроїв за заданим фільтром не знайдено.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
