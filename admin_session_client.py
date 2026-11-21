@@ -9,7 +9,7 @@ BASE_URL = "http://127.0.0.1:8000"
 
 
 class LoginFormParser(HTMLParser):
-    """Автоматично знаходить action форми входу, приховані поля (CSRF) та імена полів логіна/пароля."""
+    """Знаходить action форми входу, приховані поля (CSRF) та імена полів логіна/пароля."""
 
     def __init__(self):
         super().__init__()
@@ -49,6 +49,14 @@ def extract_title(html: str) -> str:
     return re.sub(r"\s+", " ", match.group(1)).strip() if match else "(без заголовка)"
 
 
+def extract_error(html: str) -> str:
+    match = re.search(r'<div[^>]*alert-danger[^>]*>(.*?)</div>', html, re.IGNORECASE | re.DOTALL)
+    if not match:
+        return "не вдалося визначити текст помилки"
+    text = re.sub(r"<[^>]+>", "", match.group(1))
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def main():
     session = requests.Session()
     admin_url = f"{BASE_URL}/admin"
@@ -82,9 +90,15 @@ def main():
         payload[parser.username_field] = email
         payload[parser.password_field] = password
 
-        auth_resp = session.post(post_url, data=payload, allow_redirects=True, timeout=5)
+        headers = {
+            "Origin": BASE_URL,
+            "Referer": login_url,
+            "Sec-Fetch-Site": "same-origin",
+        }
+
+        auth_resp = session.post(post_url, data=payload, headers=headers, allow_redirects=True, timeout=5)
         if "/login" in auth_resp.url:
-            print("Помилка входу: невірний email/пароль або невалідний CSRF-токен.")
+            print(f"Помилка входу. Відповідь Symfony: {extract_error(auth_resp.text)}")
             return
 
         print(f"Вхід успішний! Редірект на: {auth_resp.url}")
