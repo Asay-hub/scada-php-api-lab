@@ -1,36 +1,48 @@
+import json
 import requests
 
-def fetch_data(category=None):
-    url = "http://localhost:8000/api.php"
-    params = {"category": category} if category else {}
-    
-    try:
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        if response.status_code != 200:
-            print(f"Помилка {response.status_code}: {data.get('error')}")
-            return
+BASE_URL = "http://127.0.0.1:8000/api"
 
-        if not category:
-            print("Доступні категорії:")
-            for cat in data.get("categories", []):
-                print(f" - {cat}")
-            print(f"Підказка: {data.get('hint')}")
-        else:
-            print(f"Обладнання в категорії '{data.get('category')}':")
-            for device in data.get("devices", []):
-                print(f" - {device['name']} (Інтерфейс: {device['protocol']})")
-                
-    except requests.exceptions.RequestException as e:
+
+def fetch_json(url, params=None):
+    resp = requests.get(url, params=params, timeout=5)
+    print(f"URL: {resp.url} | HTTP {resp.status_code}")
+    try:
+        return resp.status_code, resp.json()
+    except ValueError:
+        print(f"Сервер повернув не JSON:\n{resp.text[:300]}")
+        return resp.status_code, None
+
+
+def main():
+    try:
+        print("--- Запит без параметрів (категорії) ---")
+        _, cat_data = fetch_json(f"{BASE_URL}/categories")
+        if cat_data is not None:
+            print(json.dumps(cat_data, ensure_ascii=False, indent=2))
+
+        first_code = "Temperature"
+        if cat_data and cat_data.get("categories"):
+            first_code = cat_data["categories"][0]["code"]
+
+        print(f"\n--- Запит існуючої категорії ({first_code}) ---")
+        _, by_cat = fetch_json(f"{BASE_URL}/devices/{first_code}")
+        if by_cat is not None:
+            print(json.dumps(by_cat, ensure_ascii=False, indent=2))
+
+        print("\n--- Запит усіх пристроїв ---")
+        _, all_devices = fetch_json(f"{BASE_URL}/devices")
+        if all_devices is not None:
+            print(json.dumps(all_devices, ensure_ascii=False, indent=2))
+
+        print("\n--- Запит з помилкою (неіснуюча категорія) ---")
+        _, err_data = fetch_json(f"{BASE_URL}/devices/NonExistentCategory")
+        if err_data is not None:
+            print(json.dumps(err_data, ensure_ascii=False, indent=2))
+
+    except requests.RequestException as e:
         print(f"Помилка з'єднання з API: {e}")
 
+
 if __name__ == "__main__":
-    print("--- Запит без параметрів ---")
-    fetch_data()
-    
-    print("\n--- Запит існуючої категорії ---")
-    fetch_data("Temperature")
-    
-    print("\n--- Запит з помилкою ---")
-    fetch_data("Unknown")
+    main()
